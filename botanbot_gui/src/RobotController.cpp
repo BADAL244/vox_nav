@@ -24,7 +24,7 @@ RobotController::RobotController(/* args */)
     node_, "navigate_to_pose");
   waypoint_follower_action_client_ =
     rclcpp_action::create_client<nav2_msgs::action::FollowWaypoints>(
-    node_, "FollowWaypoints");
+    node_, "follow_waypoints");
 
   rclcpp::Clock::SharedPtr
     clock = std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
