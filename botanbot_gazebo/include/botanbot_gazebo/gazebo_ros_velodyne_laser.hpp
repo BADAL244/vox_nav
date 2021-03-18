@@ -32,25 +32,22 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef GAZEBO_ROS_VELODYNE_LASER_H_
-#define GAZEBO_ROS_VELODYNE_LASER_H_
+#ifndef BOTANBOT_GAZEBO__GAZEBO_ROS_VELODYNE_LASER_HPP_
+#define BOTANBOT_GAZEBO__GAZEBO_ROS_VELODYNE_LASER_HPP_
 
-#include <string>
-#include <vector>
 
 #include <sdf/Param.hh>
-
 #include <ignition/math/Angle.hh>
-
 #include <gazebo/transport/Node.hh>
-
 #include <gazebo/common/Plugin.hh>
 #include <gazebo/msgs/MessageTypes.hh>
 #include <gazebo/sensors/SensorTypes.hh>
+#include <gazebo_ros/node.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
-#include <gazebo_ros/node.hpp>
+#include <string>
+#include <vector>
 
 namespace gazebo
 {
@@ -179,10 +176,13 @@ private:
 private:
   static double gaussianKernel(double mu, double sigma)
   {
-    // using Box-Muller transform to generate two independent standard normally distributed normal variables
+    // using Box-Muller transform to generate two independent
+    // standard normally distributed normal variables
     // see wikipedia
-    double U = (double)rand() / (double)RAND_MAX;   // normalized uniform random variable
-    double V = (double)rand() / (double)RAND_MAX;   // normalized uniform random variable
+    double U = static_cast<double>(rand()) / static_cast<double>(RAND_MAX);
+    // normalized uniform random variable
+    double V = static_cast<double>(rand()) / static_cast<double>(RAND_MAX);
+    // normalized uniform random variable
     return sigma * (sqrt(-2.0 * ::log(U)) * cos(2.0 * M_PI * V)) + mu;
   }
 
@@ -201,9 +201,8 @@ private:
 
 private:
   void OnScan(const ConstLaserScanStampedPtr & _msg);
-
 };
 
-} // namespace gazebo
+}  // namespace gazebo
 
-#endif /* GAZEBO_ROS_VELODYNE_LASER_H_ */
+#endif  // BOTANBOT_GAZEBO__GAZEBO_ROS_VELODYNE_LASER_HPP_

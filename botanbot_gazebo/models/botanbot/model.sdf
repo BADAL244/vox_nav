@@ -1,6 +1,7 @@
 <?xml version='1.0'?>
 <sdf version='1.7'>
     <model name='botanbot'>
+        <!-- BEGIN LINKS RELATED TO ROBOT BODY-->
         <link name='base_link'>
             <pose>0 0 0 0 0 0</pose>
             <inertial>
@@ -323,6 +324,9 @@
                 </geometry>
             </collision>
         </link>
+        <!-- END LINKS RELATED TO ROBOT BODY    -->
+        <!--////////////////////////////////    -->
+        <!-- BEGIN JOINTS RELATED TO ROBOT BODY -->
         <joint name='rear_axle_joint' type='revolute'>
             <parent>base_link</parent>
             <child>rear_axle</child>
@@ -417,50 +421,9 @@
                 </use_parent_model_frame>
             </axis>
         </joint>
-        <plugin name='botanbot_ackermann_drive' filename='libbotanbot_ackermann_drive.so'>
-            <ros>
-                <namespace/>
-                <remapping>cmd_vel:=cmd_vel</remapping>
-                <remapping>odom:=odometry/wheel</remapping>
-                <remapping>distance:=distance</remapping>
-            </ros>
-            <update_rate>60.0</update_rate>
-            <front_left_joint>front_left_combined_joint</front_left_joint>
-            <front_right_joint>front_right_combined_joint</front_right_joint>
-            <rear_left_joint>rear_left_joint</rear_left_joint>
-            <rear_right_joint>rear_right_joint</rear_right_joint>
-            <left_steering_joint>front_left_combined_joint</left_steering_joint>
-            <right_steering_joint>front_right_combined_joint</right_steering_joint>
-            <steering_wheel_joint>steering_joint</steering_wheel_joint>
-            <max_steer>0.6458</max_steer>
-            <max_steering_angle>7.85</max_steering_angle>
-            <max_speed>10</max_speed>
-            <left_steering_pid_gain>1000 10 100</left_steering_pid_gain>
-            <left_steering_i_range>0 1</left_steering_i_range>
-            <right_steering_pid_gain>1000 10 100</right_steering_pid_gain>
-            <right_steering_i_range>0 1</right_steering_i_range>
-            <linear_velocity_pid_gain>100 0 1</linear_velocity_pid_gain>
-            <linear_velocity_i_range>0 0</linear_velocity_i_range>
-            <publish_odom>true</publish_odom>
-            <publish_odom_tf>false</publish_odom_tf>
-            <publish_wheel_tf>false</publish_wheel_tf>
-            <publish_distance>false</publish_distance>
-            <odometry_frame>odom</odometry_frame>
-            <robot_base_frame>base_link</robot_base_frame>
-        </plugin>
-        <plugin name="botanbot_joint_states" filename="libgazebo_ros_joint_state_publisher.so">
-            <ros>
-                <argument>--ros-args --remap ~/out:=joint_states</argument>
-            </ros>
-            <update_rate>60</update_rate>
-            <joint_name>front_left_combined_joint</joint_name>
-            <joint_name>front_right_combined_joint</joint_name>
-            <joint_name>rear_left_joint</joint_name>
-            <joint_name>rear_right_joint</joint_name>
-            <joint_name>rear_axle_joint</joint_name>
-            <joint_name>steering_joint</joint_name>
-        </plugin>
-        <!-- SENSORS:  REALSENSE CAMERA-->
+        <!-- END JOINTS RELATED TO ROBOT BODY   -->
+        <!-- ////////////////////////////////   -->
+        <!-- BEGIN LINKS RELATED TO SENSORS     -->
         <link name="realsense_link">
             <pose>0.3 0.0 0.8 0 0 0</pose>
             <visual name="realsense_link_visual">
@@ -480,7 +443,6 @@
                 </geometry>
             </collision>
             <inertial>
-                <pose>0 0 0 0 0 0</pose>
                 <inertia>
                     <ixx>0.001</ixx>
                     <ixy>0.000</ixy>
@@ -579,35 +541,85 @@
                 <visualize>0</visualize>
             </sensor>
         </link>
-        <joint name="realsense_joint" type="fixed">
-            <parent>base_link</parent>
-            <child>realsense_link</child>
-            <pose>0 0 0 0 0 0</pose>
-        </joint> 
-        <plugin name="camera" filename="librealsense_gazebo_plugin.so">
-            <prefix>camera</prefix>
-            <depthUpdateRate>30.0</depthUpdateRate>
-            <colorUpdateRate>30.0</colorUpdateRate>
-            <infraredUpdateRate>1.0</infraredUpdateRate>
-            <depthTopicName>camera/aligned_depth_to_color/image_raw</depthTopicName>
-            <depthCameraInfoTopicName>camera/depth/camera_info</depthCameraInfoTopicName>
-            <colorTopicName>camera/color/image_raw</colorTopicName>
-            <colorCameraInfoTopicName>camera/color/camera_info</colorCameraInfoTopicName>
-            <infrared1TopicName>camera/infra1/image_raw</infrared1TopicName>
-            <infrared1CameraInfoTopicName>camera/infra1/camera_info</infrared1CameraInfoTopicName>
-            <infrared2TopicName>camera/infra2/image_raw</infrared2TopicName>
-            <infrared2CameraInfoTopicName>camera/infra2/camera_info</infrared2CameraInfoTopicName>
-            <colorOpticalframeName>camera_color_optical_frame</colorOpticalframeName>
-            <depthOpticalframeName>camera_depth_optical_frame</depthOpticalframeName>
-            <infrared1OpticalframeName>camera_left_ir_optical_frame</infrared1OpticalframeName>
-            <infrared2OpticalframeName>camera_right_ir_optical_frame</infrared2OpticalframeName>
-            <rangeMinDepth>0.3</rangeMinDepth>
-            <rangeMaxDepth>3.0</rangeMaxDepth>
-            <pointCloud>true</pointCloud>
-            <pointCloudTopicName>camera/depth/color/points</pointCloudTopicName>
-            <pointCloudCutoff>0.3</pointCloudCutoff>
-        </plugin>
-        <!-- SENSORS:  GPS-->
+        <link name="wide_angle_camera_link">
+            <pose>0.3 0.0 0.9 0 0 0</pose>
+            <visual name="wide_angle_camera_link_visual">
+                <pose>0 0 0 -1.57 0 -1.57</pose>
+                <geometry>
+                    <mesh>
+                        <uri>model://botanbot/meshes/d435.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+            <collision name="wide_angle_camera_link_collision">
+                <pose>0 0 0 -1.57 0 -1.57</pose>
+                <geometry>
+                    <box>
+                        <size>0.02505 0.090 0.025</size>
+                    </box>
+                </geometry>
+            </collision>
+            <inertial>
+                <pose>0 0 0 -1.57 0 -1.57</pose>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0.000</ixy>
+                    <ixz>0.000</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0.000</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+                <mass>0.564</mass>
+            </inertial>
+            <sensor name="wide_angle_camera" type="wideanglecamera">
+                <camera>
+                    <horizontal_fov>3.1415</horizontal_fov>
+                    <image>
+                        <width>1280</width>
+                        <height>720</height>
+                        <format>L_INT8</format>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>100</far>
+                    </clip>
+                    <!-- A new section named `lens`. -->
+                    <lens>
+                        <!-- type element is mandatory -->
+                        <type>custom</type>
+                        <!-- manually defined mapping function r = c1*f*fun(theta/c2 + c3) -->
+                        <!-- More information here: https://en.wikipedia.org/wiki/Fisheye_lens#Mapping_function -->
+                        <custom_function>
+                            <c1>1.05</c1>
+                            <!-- linear scaling -->
+                            <c2>4</c2>
+                            <!-- angle scaling -->
+                            <f>1.0</f>
+                            <!-- one more scaling parameter -->
+                            <fun>tan</fun>
+                            <!-- one of sin,tan,id -->
+                        </custom_function>
+                        <!-- if it is set to `true` your horizontal FOV will ramain as defined -->
+                        <!-- othervise it depends on lens type and custom function, if there is one -->
+                        <scale_to_hfov>true</scale_to_hfov>
+                        <!-- clip everything that is outside of this angle -->
+                        <cutoff_angle>3.1415</cutoff_angle>
+                        <!-- resolution of the cubemap texture, the highter it is - the sharper is your image -->
+                        <env_texture_size>512</env_texture_size>
+                    </lens>
+                    <always_on>1</always_on>
+                    <update_rate>30</update_rate>
+                    <visualize>1</visualize>
+                </camera>
+                <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+                    <cameraName>wide_angle_camera</cameraName>
+                    <imageTopicName>wide_image_raw</imageTopicName>
+                    <cameraInfoTopicName>wide_camera_info</cameraInfoTopicName>
+                    <frameName>wide_angle_camera_link</frameName>
+                    <hackBaseline>0.07</hackBaseline>
+                </plugin>
+            </sensor>
+        </link>
         <link name="gps">
             <pose>0 -0 0.4 0 0 0</pose>
             <collision name="collision">
@@ -626,29 +638,7 @@
                     </mesh>
                 </geometry>
             </visual>
-            <sensor name="gps" type="gps">
-                <always_on>true</always_on>
-                <update_rate>10</update_rate>
-                <gps>
-                    <position_sensing>
-                        <horizontal></horizontal>
-                        <vertical></vertical>
-                    </position_sensing>
-                </gps>
-                <plugin name="gps" filename="libgazebo_ros_gps_sensor.so">
-                    <ros>
-                        <namespace>/gps</namespace>
-                        <remapping>~/out:=fix</remapping>
-                    </ros>
-                </plugin>
-            </sensor>
         </link>
-        <joint name="gps_joint" type="fixed">
-            <parent>base_link</parent>
-            <child>gps</child>
-            <pose>0 0 0 0 0 0</pose>
-        </joint>
-        <!-- SENSORS: VELODYNE VLP-16-->
         <link name="velodyne_link">
             <pose>0 0 0.9 0 0 0</pose>
             <collision name="collision">
@@ -679,13 +669,12 @@
                 </material>
             </visual>
             <sensor type="gpu_ray" name="VLP16">
-                <pose>0 0 0 0 0 0</pose>
                 <visualize>false</visualize>
                 <update_rate>10</update_rate>
                 <ray>
                     <scan>
                         <horizontal>
-                            <samples>512</samples>
+                            <samples>1875</samples>
                             <resolution>1</resolution>
                             <min_angle>-3.14</min_angle>
                             <max_angle>3.14</max_angle>
@@ -717,14 +706,24 @@
                 </plugin>
             </sensor>
         </link>
-        <joint name="velodyne_joint" type="fixed">
-            <parent>base_link</parent>
-            <child>velodyne_link</child>
-            <pose>0 0 0 0 0 0</pose>
-        </joint>
-        <!-- SENSORS: IMU -->
         <link name="imu_link">
-            <pose>0.7 0.5 0.6 0 0 0</pose>
+            <pose>0 0 1.2 0 0 0</pose>
+            <collision name="collision">
+                <geometry>
+                    <mesh>
+                        <uri>model://botanbot/meshes/gps.stl</uri>
+                        <scale>0.0005 0.0005 0.001</scale>
+                    </mesh>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <geometry>
+                    <mesh>
+                        <uri>model://botanbot/meshes/gps.stl</uri>
+                        <scale>0.0005 0.0005 0.001</scale>
+                    </mesh>
+                </geometry>
+            </visual>
             <inertial>
                 <inertia>
                     <ixx>0.001</ixx>
@@ -736,63 +735,125 @@
                 </inertia>
                 <mass>0.035</mass>
             </inertial>
-            <gravity>true</gravity>
-            <sensor name="imu" type="imu">
-                <always_on>true</always_on>
-                <update_rate>30</update_rate>
-                <imu>
-                    <angular_velocity>
-                        <x>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>2e-4</stddev>
-                            </noise>
-                        </x>
-                        <y>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>2e-4</stddev>
-                            </noise>
-                        </y>
-                        <z>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>2e-4</stddev>
-                            </noise>
-                        </z>
-                    </angular_velocity>
-                    <linear_acceleration>
-                        <x>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>1.7e-2</stddev>
-                            </noise>
-                        </x>
-                        <y>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>1.7e-2</stddev>
-                            </noise>
-                        </y>
-                        <z>
-                            <noise type="gaussian">
-                                <mean>0.0</mean>
-                                <stddev>1.7e-2</stddev>
-                            </noise>
-                        </z>
-                    </linear_acceleration>
-                </imu>
-                <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
-                    <ros>
-                        <remapping>~/out:=imu/data</remapping>
-                    </ros>
-                </plugin>
-            </sensor>
         </link>
+        <!-- END LINKS RELATED TO SENSORS       -->
+        <!-- ////////////////////////////////   -->
+        <!-- BEGIN JOINTS RELATED TO SENSORS    -->
+        <joint name="realsense_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>realsense_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+        <joint name="wide_angle_camera_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>wide_angle_camera_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+        <joint name="gps_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>gps</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+        <joint name="velodyne_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>velodyne_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
         <joint name="imu_joint" type="fixed">
             <parent>base_link</parent>
             <child>imu_link</child>
             <pose>0 0 0 0 0 0</pose>
         </joint>
+        <!-- END JOINTS RELATED TO SENSORS       -->
+        <!-- ////////////////////////////////    -->
+        <!-- BEGIN BOTANBOT PLUGINS              -->
+        <plugin name='botanbot_ackermann_drive' filename='libbotanbot_ackermann_drive.so'>
+            <ros>
+                <namespace/>
+                <remapping>cmd_vel:=cmd_vel</remapping>
+                <remapping>odom:=odometry/wheel</remapping>
+                <remapping>distance:=distance</remapping>
+            </ros>
+            <update_rate>60.0</update_rate>
+            <front_left_joint>front_left_combined_joint</front_left_joint>
+            <front_right_joint>front_right_combined_joint</front_right_joint>
+            <rear_left_joint>rear_left_joint</rear_left_joint>
+            <rear_right_joint>rear_right_joint</rear_right_joint>
+            <left_steering_joint>front_left_combined_joint</left_steering_joint>
+            <right_steering_joint>front_right_combined_joint</right_steering_joint>
+            <steering_wheel_joint>steering_joint</steering_wheel_joint>
+            <max_steer>0.6458</max_steer>
+            <max_steering_angle>7.85</max_steering_angle>
+            <max_speed>10</max_speed>
+            <left_steering_pid_gain>1000 10 100</left_steering_pid_gain>
+            <left_steering_i_range>0 1</left_steering_i_range>
+            <right_steering_pid_gain>1000 10 100</right_steering_pid_gain>
+            <right_steering_i_range>0 1</right_steering_i_range>
+            <linear_velocity_pid_gain>100 0 1</linear_velocity_pid_gain>
+            <linear_velocity_i_range>0 0</linear_velocity_i_range>
+            <publish_odom>true</publish_odom>
+            <publish_odom_tf>false</publish_odom_tf>
+            <publish_wheel_tf>false</publish_wheel_tf>
+            <publish_distance>false</publish_distance>
+            <odometry_frame>odom</odometry_frame>
+            <robot_base_frame>base_link</robot_base_frame>
+        </plugin>
+        <plugin name="botanbot_joint_states" filename="libgazebo_ros_joint_state_publisher.so">
+            <ros>
+                <argument>--ros-args --remap ~/out:=joint_states</argument>
+            </ros>
+            <update_rate>60</update_rate>
+            <joint_name>front_left_combined_joint</joint_name>
+            <joint_name>front_right_combined_joint</joint_name>
+            <joint_name>rear_left_joint</joint_name>
+            <joint_name>rear_right_joint</joint_name>
+            <joint_name>rear_axle_joint</joint_name>
+            <joint_name>steering_joint</joint_name>
+        </plugin>
+        <plugin name="camera" filename="librealsense_gazebo_plugin.so">
+            <prefix>camera</prefix>
+            <depthUpdateRate>30.0</depthUpdateRate>
+            <colorUpdateRate>30.0</colorUpdateRate>
+            <infraredUpdateRate>1.0</infraredUpdateRate>
+            <depthTopicName>camera/aligned_depth_to_color/image_raw</depthTopicName>
+            <depthCameraInfoTopicName>camera/depth/camera_info</depthCameraInfoTopicName>
+            <colorTopicName>camera/color/image_raw</colorTopicName>
+            <colorCameraInfoTopicName>camera/color/camera_info</colorCameraInfoTopicName>
+            <infrared1TopicName>camera/infra1/image_raw</infrared1TopicName>
+            <infrared1CameraInfoTopicName>camera/infra1/camera_info</infrared1CameraInfoTopicName>
+            <infrared2TopicName>camera/infra2/image_raw</infrared2TopicName>
+            <infrared2CameraInfoTopicName>camera/infra2/camera_info</infrared2CameraInfoTopicName>
+            <colorOpticalframeName>camera_color_optical_frame</colorOpticalframeName>
+            <depthOpticalframeName>camera_depth_optical_frame</depthOpticalframeName>
+            <infrared1OpticalframeName>camera_left_ir_optical_frame</infrared1OpticalframeName>
+            <infrared2OpticalframeName>camera_right_ir_optical_frame</infrared2OpticalframeName>
+            <rangeMinDepth>0.1</rangeMinDepth>
+            <rangeMaxDepth>50.0</rangeMaxDepth>
+            <pointCloud>true</pointCloud>
+            <pointCloudTopicName>camera/depth/color/points</pointCloudTopicName>
+            <pointCloudCutoff>0.50</pointCloudCutoff>
+        </plugin>
+        <plugin name="hector_gps" filename="libgazebo_ros_gps.so">
+            <alwaysOn>true</alwaysOn>
+            <updateRate>30.0</updateRate>
+            <bodyName>gps</bodyName>
+            <topicName>gps/fix</topicName>
+            <velocityTopicName>gps/fix_vel</velocityTopicName>
+            <drift>5.0 5.0 5.0</drift>
+            <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
+            <velocityDrift>0 0 0</velocityDrift>
+            <velocityGaussianNoise>0.1 0.1 0.1</velocityGaussianNoise>
+        </plugin>
+        <plugin name="hector_imu" filename="libgazebo_ros_imu.so">
+            <alwaysOn>true</alwaysOn>
+            <updateRate>30.0</updateRate>
+            <frameId>imu_link</frameId>
+            <bodyName>imu_link</bodyName>
+            <topicName>imu/data</topicName>
+            <gaussianNoise>0.0 0.0 0.0</gaussianNoise>
+            <xyzOffset>0.0 0.0 0.0</xyzOffset>
+            <rpyOffset>0.0 0.0 0.0</rpyOffset>
+        </plugin>
+        <!-- END BOTANBOT PLUGINS              -->
     </model>
 </sdf>
