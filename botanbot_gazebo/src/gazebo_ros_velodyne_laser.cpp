@@ -61,12 +61,15 @@ GZ_REGISTER_SENSOR_PLUGIN(GazeboRosVelodyneLaser)
 GazeboRosVelodyneLaser::GazeboRosVelodyneLaser()
 : min_range_(0), max_range_(0), gaussian_noise_(0)
 {
+  gzdbg << "Creating GazeboRosVelodyneLaser\n";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Destructor
 GazeboRosVelodyneLaser::~GazeboRosVelodyneLaser()
 {
+  gzdbg << "Destroying GazeboRosVelodyneLaser\n";
+
 }
 
 std::vector<GazeboRosVelodyneLaser::ScanPattern::Sample>
