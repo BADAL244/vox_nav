@@ -52,7 +52,7 @@ bt_navigator:
     use_sim_time: True
     global_frame: odom
     robot_base_frame: base_link
-    transform_tolerance: 0.1    
+    transform_tolerance: 0.1   
     odom_topic: /odom
     default_bt_xml_filename: "navigate_w_replanning_distance.xml"
     plugin_lib_names:
@@ -239,8 +239,8 @@ global_costmap:
           topic: /velodyne_points
           max_obstacle_height: 4.0
           min_obstacle_height: 0.0
-          obstacle_range: 10.0
-          raytrace_range: 10.0
+          obstacle_range: 40.0
+          raytrace_range: 40.0
           clearing: True
           marking: True
           data_type: "PointCloud2"
@@ -316,6 +316,7 @@ robot_state_publisher:
 
 waypoint_follower:
   ros__parameters:
+    use_sim_time: True
     loop_rate: 30
     stop_on_failure: false
     #Choose a plugin from provided ones; photo_at_waypoint or photo_at_waypoint
