@@ -34,8 +34,6 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(botanbot_msgs REQUIRED)
-find_package(OCTOMAP REQUIRED)
-find_package(octomap_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 option(ENABLE_PROFILER "Enable Ignition Profiler" TRUE)
@@ -78,8 +76,6 @@ set(dependencies
     tf2_ros
     trajectory_msgs
     botanbot_msgs
-    OCTOMAP
-    octomap_msgs
     Eigen3)
 
 # BOTANBOT ACKERMANN DRIVE GAZEBO PLUGIN SHARED LIBRARY
@@ -109,16 +105,12 @@ ament_target_dependencies(gazebo_ros_gps ${dependencies})
 add_library(gazebo_ros_imu SHARED src/gazebo_ros_imu.cpp)
 ament_target_dependencies(gazebo_ros_imu ${dependencies})
 
-# BOTANBOT GZEBO WORLD TO OCTOMAP PLUGIN SHARED LIBRARY
-add_library(gazebo_world_to_octomap SHARED src/gazebo_to_octomap.cpp)
-ament_target_dependencies(gazebo_world_to_octomap ${dependencies})
-
 ament_export_libraries(botanbot_ackermann_drive 
                        realsense_gazebo_plugin 
                        gazebo_ros_velodyne_laser 
                        gazebo_ros_gps
                        gazebo_ros_imu
-                       gazebo_world_to_octomap)
+                       )
 
 ################################################################################
 # Install
@@ -129,7 +121,6 @@ install(TARGETS
         gazebo_ros_velodyne_laser
         gazebo_ros_gps
         gazebo_ros_imu
-        gazebo_world_to_octomap
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
