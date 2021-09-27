@@ -62,6 +62,21 @@ namespace vox_nav_control
       sl_acc_dv_ = sl_dv_(slice_all_, 0);
       sl_df_dv_ = sl_dv_(slice_all_, 1);
 
+      // obstacle cost
+      obstacle_cost_ = opti_->variable(params_.N);
+      original_octomap_octree_ = std::make_shared<octomap::OcTree>(0.2);
+      get_maps_and_surfels_client_node_ = std::make_shared
+        <rclcpp::Node>("get_maps_and_surfels_client_node");
+      get_maps_and_surfels_client_ =
+        get_maps_and_surfels_client_node_->create_client
+        <vox_nav_msgs::srv::GetMapsAndSurfels>(
+        "get_maps_and_surfels");
+      typedef std::shared_ptr<fcl::CollisionGeometry> CollisionGeometryPtr_t;
+      CollisionGeometryPtr_t robot_body_box(new fcl::Box(1.2, 1.2, 0.4));
+      fcl::CollisionObject robot_body_box_object(robot_body_box, fcl::Transform3f());
+      robot_collision_object_ = std::make_shared<fcl::CollisionObject>(robot_body_box_object);
+      setupMap();
+
       // Add cost and constraints to optimal control problem
       addConstraints();
       addCost();
@@ -124,15 +139,69 @@ namespace vox_nav_control
           "MPC Controller parameters are not Configured !!!, Using default parameters. " <<
           std::endl;
       }
+
     }
 
     MPCControllerCore::~MPCControllerCore()
     {
     }
 
+    void MPCControllerCore::setupMap()
+    {
+      while (!is_map_ready_ && rclcpp::ok()) {
+        auto request = std::make_shared<vox_nav_msgs::srv::GetMapsAndSurfels::Request>();
+
+        while (!get_maps_and_surfels_client_->wait_for_service(std::chrono::seconds(1))) {
+          if (!rclcpp::ok()) {
+            RCLCPP_ERROR(
+              logger_,
+              "Interrupted while waiting for the get_maps_and_surfels service. Exiting");
+            return;
+          }
+          RCLCPP_INFO(
+            logger_,
+            "get_maps_and_surfels service not available, waiting and trying again");
+        }
+
+        auto result_future = get_maps_and_surfels_client_->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(
+            get_maps_and_surfels_client_node_,
+            result_future) !=
+          rclcpp::FutureReturnCode::SUCCESS)
+        {
+          RCLCPP_ERROR(logger_, "/get_maps_and_surfels service call failed");
+        }
+        auto response = result_future.get();
+
+        if (response->is_valid) {
+          is_map_ready_ = true;
+        } else {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          RCLCPP_INFO(
+            logger_, "Waiting for GetMapsAndSurfels service to provide correct maps.");
+          continue;
+        }
+
+        auto original_octomap_octree =
+          dynamic_cast<octomap::OcTree *>(octomap_msgs::fullMsgToMap(response->original_octomap));
+        original_octomap_octree_ = std::make_shared<octomap::OcTree>(*original_octomap_octree);
+
+        delete original_octomap_octree;
+
+        auto original_octomap_fcl_octree = std::make_shared<fcl::OcTree>(original_octomap_octree_);
+        original_octomap_collision_object_ = std::make_shared<fcl::CollisionObject>(
+          std::shared_ptr<fcl::CollisionGeometry>(original_octomap_fcl_octree));
+
+        RCLCPP_INFO(
+          logger_,
+          "Recieved a valid Octomap with %d nodes, A FCL collision tree will be created from this "
+          "octomap for state validity (aka collision check)", original_octomap_octree_->size());
+      }
+    }
+
     void MPCControllerCore::addConstraints()
     {
-      //  State Bound Constraints
+      //  Speed Bound
       opti_->subject_to(opti_->bounded(params_.V_MIN, v_dv_, params_.V_MAX));
 
       // Initial state constraints
@@ -149,7 +218,6 @@ namespace vox_nav_control
           casadi::MX::atan(
           params_.L_R / (params_.L_F + params_.L_R) *
           casadi::MX::tan(df_dv_(i)));
-
         opti_->subject_to(
           x_dv_(i + 1) ==
           x_dv_(i) + params_.DT * (v_dv_(i) * casadi::MX::cos(psi_dv_(i) + beta)));
@@ -162,6 +230,7 @@ namespace vox_nav_control
         opti_->subject_to(
           v_dv_(i + 1) ==
           v_dv_(i) + params_.DT * acc_dv_(i));
+
       }
 
       //  Input Bound Constraints
@@ -214,6 +283,7 @@ namespace vox_nav_control
       // tracking cost cost
       for (int i = 0; i < params_.N; i++) {
         cost += quad_form(z_dv_(i + 1, slice_all_) - z_ref_(i, slice_all_), Q);
+
       }
       // input derivative cost
       for (int i = 0; i < params_.N - 1; i++) {
@@ -221,8 +291,12 @@ namespace vox_nav_control
       }
       // slack cost
       cost += (casadi::MX::sum1(sl_df_dv_) + casadi::MX::sum1(sl_acc_dv_));
+
+      cost += casadi::MX::sum1(obstacle_cost_);
+
       // minimize ojective function
       opti_->minimize(cost);
+
     }
 
     MPCControllerCore::SolutionResult MPCControllerCore::solve()
@@ -257,7 +331,32 @@ namespace vox_nav_control
         ith_computed_state.psi = z_mpc(i, 2).scalar();
         ith_computed_state.v = z_mpc(i, 3).scalar();
         actual_computed_states.push_back(ith_computed_state);
+
+        if (i < params_.N && !obstacle_cost_added_) {
+          double x = z_mpc(i, 0).scalar();
+          double y = z_mpc(i, 1).scalar();
+          double yaw = z_mpc(i, 2).scalar();
+          fcl::Vec3f translation(x, y, 1.0);
+          tf2::Quaternion myQuaternion;
+          myQuaternion.setRPY(0, 0, yaw);
+          fcl::Quaternion3f rotation(
+            myQuaternion.getX(), myQuaternion.getY(),
+            myQuaternion.getZ(), myQuaternion.getW());
+          robot_collision_object_->setTransform(rotation, translation);
+          fcl::CollisionRequest requestType(1, false, 1, false);
+          fcl::CollisionResult collisionWithFullMapResult;
+          fcl::collide(
+            robot_collision_object_.get(),
+            original_octomap_collision_object_.get(), requestType, collisionWithFullMapResult);
+          if (collisionWithFullMapResult.isCollision()) {
+            opti_->set_initial(obstacle_cost_(i), {4.0});
+          } else {
+            opti_->set_initial(obstacle_cost_(i), {0.0});
+          }
+          opti_->subject_to(obstacle_cost_(i) == 0);
+        }
       }
+      obstacle_cost_added_ = true;
 
       ControlInput control_input;
       control_input.acc = u_mpc(0, 0).scalar();
@@ -271,7 +370,8 @@ namespace vox_nav_control
 
       if (params_.debug_mode) {
         std::cout << "Current States z_curr_: \n " << opti_->debug().value(z_curr_) << std::endl;
-        std::cout << "Refernce Traj states z_ref_: \n" << opti_->debug().value(z_ref_) << std::endl;
+        std::cout << "Refernce Traj states z_ref_: \n" << opti_->debug().value(z_ref_) <<
+          std::endl;
         std::cout << "Actual Traj states z_dv_: \n" << opti_->debug().value(z_dv_) << std::endl;
         std::cout << "Control inputs u_dv_: \n" << opti_->debug().value(u_dv_) << std::endl;
         std::cout << "Previous Control inputs u_prev_: \n" << opti_->debug().value(u_prev_) <<
@@ -302,6 +402,8 @@ namespace vox_nav_control
       opti_->set_value(y_ref_, y_ref);
       opti_->set_value(psi_ref_, psi_ref);
       opti_->set_value(v_ref_, v_ref);
+
+
     }
 
     void MPCControllerCore::updatePreviousControlInput(ControlInput previous_control_input)
@@ -348,5 +450,5 @@ namespace vox_nav_control
       opti_->set_initial(v_dv_, v_dv);
     }
 
-  } // namespace mpc_controller
-}  // namespace vox_nav_control
+  }   // namespace mpc_controller
+}   // namespace vox_nav_control

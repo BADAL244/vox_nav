@@ -112,6 +112,7 @@ namespace vox_nav_control
       mpc_controller_->updateCurrentStates(curr_states);
       mpc_controller_->updateReferences(local_interpolated_reference_states);
       mpc_controller_->updatePreviousControlInput(previous_control_);
+
       MPCControllerCore::SolutionResult res = mpc_controller_->solve();
 
       //  The control output is acceleration but we need to publish speed
@@ -121,9 +122,13 @@ namespace vox_nav_control
         rear_axle_tofront_dist;
 
       regulate_max_speed();
-      publishLocalInterpolatedRefernceStates(local_interpolated_reference_states);
+
+      publishLocalInterpolatedRefernceStates(res.actual_computed_states);
+      //publishLocalInterpolatedRefernceStates(local_interpolated_reference_states);
+
       previous_control_ = res.control_input;
       return computed_velocity_;
+      //return geometry_msgs::msg::Twist();
     }
 
     geometry_msgs::msg::Twist MPCControllerROS::computeHeadingCorrectionCommands(
@@ -189,19 +194,15 @@ namespace vox_nav_control
       // Now lets find nearest trajectory point to robot base
       int nearsest_traj_state_index = nearestStateIndex(reference_traj_, curr_robot_pose);
 
+      int num_states_to_be_processed = reference_traj_.poses.size() - 1 - nearsest_traj_state_index;
+
       // Auto calculate interpolation steps
-      double path_euclidian_length = 0.0;
-      for (size_t i = 1; i < reference_traj_.poses.size(); i++) {
-        path_euclidian_length += vox_nav_utilities::getEuclidianDistBetweenPoses(
+      double reamining_path_euclidian_length = 0.0;
+      for (size_t i = nearsest_traj_state_index + 1; i < reference_traj_.poses.size(); i++) {
+        reamining_path_euclidian_length += vox_nav_utilities::getEuclidianDistBetweenPoses(
           reference_traj_.poses[i], reference_traj_.poses[i - 1]);
       }
 
-      double interpolation_step_size = path_euclidian_length / reference_traj_.poses.size();
-      int states_to_see_horizon = global_plan_look_ahead_distance_ / interpolation_step_size;
-      int local_goal_state_index = nearsest_traj_state_index + states_to_see_horizon;
-      if (local_goal_state_index >= reference_traj_.poses.size() - 1) {
-        local_goal_state_index = reference_traj_.poses.size() - 1;
-      }
       // Define a state space, we basically need this only because we want to use OMPL's
       // geometric path, And then we can interpolate this path
       std::shared_ptr<ompl::base::RealVectorBounds> state_space_bounds =
@@ -211,31 +212,22 @@ namespace vox_nav_control
       state_space->as<ompl::base::SE2StateSpace>()->setBounds(*state_space_bounds);
       ompl::base::SpaceInformationPtr state_space_information =
         std::make_shared<ompl::base::SpaceInformation>(state_space);
+
       ompl::geometric::PathGeometric path(state_space_information);
 
-      ompl::base::ScopedState<ompl::base::SE2StateSpace>
-      closest_ref_traj_state(state_space),
-      ompl_local_goal_state(state_space);
+      for (size_t i = nearsest_traj_state_index; i < reference_traj_.poses.size(); i++) {
+        ompl::base::ScopedState<ompl::base::SE2StateSpace> curr_ref_traj_state(state_space);
+        // Feed initial state, which is closest ref trajectory state
+        double void_var, yaw;
+        // Feed Intermediate state , which is nearest state in ref traj
+        vox_nav_utilities::getRPYfromMsgQuaternion(
+          reference_traj_.poses[i].pose.orientation, void_var, void_var, yaw);
+        curr_ref_traj_state[0] = reference_traj_.poses[i].pose.position.x;
+        curr_ref_traj_state[1] = reference_traj_.poses[i].pose.position.y;
+        curr_ref_traj_state[2] = yaw;
+        path.append(static_cast<ompl::base::State *>(curr_ref_traj_state.get()));
 
-      // Feed initial state, which is closest ref trajectory state
-      double void_var, yaw;
-
-      // Feed Intermediate state , which is nearest state in ref traj
-      vox_nav_utilities::getRPYfromMsgQuaternion(
-        reference_traj_.poses[nearsest_traj_state_index].pose.orientation, void_var, void_var, yaw);
-      closest_ref_traj_state[0] = reference_traj_.poses[nearsest_traj_state_index].pose.position.x;
-      closest_ref_traj_state[1] = reference_traj_.poses[nearsest_traj_state_index].pose.position.y;
-      closest_ref_traj_state[2] = yaw;
-      path.append(static_cast<ompl::base::State *>(closest_ref_traj_state.get()));
-
-      // Feed the final state, which the local goal for the current control effort.
-      // This is basically the state in the ref trajectory, which is closest to global_plan_look_ahead_distance_
-      vox_nav_utilities::getRPYfromMsgQuaternion(
-        reference_traj_.poses[local_goal_state_index].pose.orientation, void_var, void_var, yaw);
-      ompl_local_goal_state[0] = reference_traj_.poses[local_goal_state_index].pose.position.x;
-      ompl_local_goal_state[1] = reference_traj_.poses[local_goal_state_index].pose.position.y;
-      ompl_local_goal_state[2] = yaw;
-      path.append(static_cast<ompl::base::State *>(ompl_local_goal_state.get()));
+      }
 
       // The local ref traj now contains only 3 states, we will interpolate this states with OMPL
       // The count of states after interpolation must be same as horizon defined for the control problem , hence
@@ -244,6 +236,7 @@ namespace vox_nav_control
 
       // Now the local ref traj is interpolated from current robot state up to state at global look ahead distance
       // Lets fill the native MPC type ref states and return to caller
+
       std::vector<MPCControllerCore::States> interpolated_reference_states;
       for (std::size_t path_idx = 0; path_idx < path.getStateCount(); path_idx++) {
         // cast the abstract state type to the type we expect
@@ -256,6 +249,7 @@ namespace vox_nav_control
         curr_interpolated_state.psi = interpolated_state->getYaw();
         interpolated_reference_states.push_back(curr_interpolated_state);
       }
+
       return interpolated_reference_states;
     }
 

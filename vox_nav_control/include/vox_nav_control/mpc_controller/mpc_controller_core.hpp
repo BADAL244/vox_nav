@@ -14,7 +14,8 @@
 
 // Equations and logic parts of this code was based on ;
 // https://github.com/MPC-Berkeley/genesis_path_follower
-// Also refer to https://github.com/MPC-Berkeley/barc/wiki/Car-Model
+// Also refer to :
+// https://github.com/MPC-Berkeley/barc/wiki/Car-Model
 
 #ifndef VOX_NAV_CONTROL__MPC_CONTROLLER__MPC_CONTROLLER_CORE_HPP_
 #define VOX_NAV_CONTROL__MPC_CONTROLLER__MPC_CONTROLLER_CORE_HPP_
@@ -25,13 +26,32 @@
 #include <memory>
 #include <chrono>
 
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/service.hpp>
+#include <rclcpp/client.hpp>
+// OCTOMAP
+#include <fcl/config.h>
+#include <fcl/octree.h>
+#include <fcl/traversal/traversal_node_octree.h>
+#include <fcl/collision.h>
+#include <fcl/broadphase/broadphase.h>
+#include <fcl/math/transform.h>
+#include <octomap_msgs/msg/octomap.hpp>
+#include <octomap_msgs/conversions.h>
+#include <octomap/octomap.h>
+#include <octomap/octomap_utils.h>
+#include <vox_nav_utilities/tf_helpers.hpp>
+#include <vox_nav_utilities/pcl_helpers.hpp>
+#include <vox_nav_utilities/planner_helpers.hpp>
+#include <vox_nav_msgs/srv/get_maps_and_surfels.hpp>
+
 namespace vox_nav_control
 {
   namespace mpc_controller
   {
 
 /**
- * @brief CASADI based MOdel Predcitive Control for Ackermann Vehicle
+ * @brief CASADI based Model Predcitive Control for Ackermann Vehicle
  *
  */
     class MPCControllerCore
@@ -240,6 +260,8 @@ namespace vox_nav_control
        */
       SolutionResult solve();
 
+      void setupMap();
+
     private:
       std::shared_ptr<casadi::Opti> opti_;
       // used to slice casadi matrixes
@@ -282,8 +304,21 @@ namespace vox_nav_control
       casadi::MX sl_acc_dv_;
       casadi::MX sl_df_dv_;
 
+      casadi::MX obstacle_cost_;
+
       // this will be updated through the constructor.
       Parameters params_;
+
+      rclcpp::Client<vox_nav_msgs::srv::GetMapsAndSurfels>::SharedPtr get_maps_and_surfels_client_;
+      rclcpp::Node::SharedPtr get_maps_and_surfels_client_node_;
+      // octomap acquired from original PCD map
+      std::shared_ptr<octomap::OcTree> original_octomap_octree_;
+      std::shared_ptr<fcl::CollisionObject> original_octomap_collision_object_;
+      std::shared_ptr<fcl::CollisionObject> robot_collision_object_;
+      std::mutex octomap_mutex_;
+      volatile bool is_map_ready_;
+      volatile bool obstacle_cost_added_;
+      rclcpp::Logger logger_{rclcpp::get_logger("mpc_controller_core")};
     };
   } // namespace mpc_controller
 }  // namespace vox_nav_control
